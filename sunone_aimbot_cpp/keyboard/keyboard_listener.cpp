@@ -17,6 +17,7 @@
 #include "capture.h"
 #include "KmboxNetConnection.h"
 #include "Makcu.h"
+#include "MakcuKeyboard.h"
 
 extern std::atomic<bool> shouldExit;
 extern std::atomic<bool> aiming;
@@ -95,6 +96,10 @@ bool isAnyKeyPressed(const std::vector<std::string>& keys)
             else if (key_name == "RightMouseButton")  pressed = arduinoSerial->zooming_active;
             else if (key_name == "X2MouseButton")     pressed = arduinoSerial->aiming_active;
         }
+
+        // Second Makcu keyboard monitor (native HID keyboard pass-through)
+        if (!pressed && makcuKeyboard && makcuKeyboard->isOpen())
+            pressed = makcuKeyboard->isKeyDown(key_name);
 
         // Win32 API
         if (!pressed && key_code != -1)

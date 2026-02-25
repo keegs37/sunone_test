@@ -84,6 +84,10 @@ bool Config::loadConfig(const std::string& filename)
         prediction_futurePositions = 20;
         draw_futurePositions = true;
 
+        prediction_smoothing   = 0.0f;
+        jitter_suppression     = 0.0f;
+        prediction_latency_ms  = 2.0f;
+
         snapRadius = 1.5f;
         nearRadius = 25.0f;
         speedCurveExponent = 3.0f;
@@ -118,6 +122,11 @@ bool Config::loadConfig(const std::string& filename)
         makcu_baudrate = 115200;
         makcu_port = "COM0";
 
+        // makcu keyboard monitor
+        makcu_kb_enabled  = false;
+        makcu_kb_port     = "COM0";
+        makcu_kb_baudrate = 115200;
+
         // Mouse shooting
         auto_shoot = false;
         bScope_multiplier = 1.0f;
@@ -137,6 +146,8 @@ bool Config::loadConfig(const std::string& filename)
 #endif
 
         confidence_threshold = 0.10f;
+        head_confidence_threshold = 0.15f;
+        body_confidence_threshold = 0.10f;
         nms_threshold = 0.50f;
         max_detections = 100;
 #ifdef USE_CUDA
@@ -378,6 +389,16 @@ bool Config::loadConfig(const std::string& filename)
     predictionInterval = (float)get_double("predictionInterval", 0.01);
     prediction_futurePositions = get_long("prediction_futurePositions", 20);
     draw_futurePositions = get_bool("draw_futurePositions", true);
+
+    prediction_smoothing  = (float)get_double("prediction_smoothing",  0.0);
+    jitter_suppression    = (float)get_double("jitter_suppression",    0.0);
+    prediction_latency_ms = (float)get_double("prediction_latency_ms", 2.0);
+    if (prediction_smoothing  < 0.0f) prediction_smoothing  = 0.0f;
+    if (prediction_smoothing  > 0.9f) prediction_smoothing  = 0.9f;
+    if (jitter_suppression    < 0.0f) jitter_suppression    = 0.0f;
+    if (jitter_suppression    > 0.9f) jitter_suppression    = 0.9f;
+    if (prediction_latency_ms < 0.0f) prediction_latency_ms = 0.0f;
+    if (prediction_latency_ms > 20.0f)prediction_latency_ms = 20.0f;
     
     snapRadius = (float)get_double("snapRadius", 1.5);
     nearRadius = (float)get_double("nearRadius", 25.0);
@@ -413,6 +434,11 @@ bool Config::loadConfig(const std::string& filename)
     makcu_baudrate = get_long("makcu_baudrate", 115200);
     makcu_port = get_string("makcu_port", "COM0");
 
+    // makcu keyboard monitor
+    makcu_kb_enabled  = get_bool("makcu_kb_enabled", false);
+    makcu_kb_port     = get_string("makcu_kb_port", "COM0");
+    makcu_kb_baudrate = get_long("makcu_kb_baudrate", 115200);
+
     // Mouse shooting
     auto_shoot = get_bool("auto_shoot", false);
     bScope_multiplier = (float)get_double("bScope_multiplier", 1.2);
@@ -432,6 +458,8 @@ bool Config::loadConfig(const std::string& filename)
     ai_model = get_string("ai_model", "sunxds_0.8.0.onnx");
 #endif
     confidence_threshold = (float)get_double("confidence_threshold", 0.15);
+    head_confidence_threshold = (float)get_double("head_confidence_threshold", 0.15);
+    body_confidence_threshold = (float)get_double("body_confidence_threshold", 0.10);
     nms_threshold = (float)get_double("nms_threshold", 0.50);
     max_detections = get_long("max_detections", 20);
 #ifdef USE_CUDA
@@ -632,6 +660,10 @@ bool Config::saveConfig(const std::string& filename)
         << "predictionInterval = " << predictionInterval << "\n"
         << "prediction_futurePositions = " << prediction_futurePositions << "\n"
         << "draw_futurePositions = " << (draw_futurePositions ? "true" : "false") << "\n"
+        << "prediction_smoothing = " << prediction_smoothing << "\n"
+        << "jitter_suppression = " << jitter_suppression << "\n"
+        << std::fixed << std::setprecision(1)
+        << "prediction_latency_ms = " << prediction_latency_ms << "\n"
 
         << "snapRadius = " << snapRadius << "\n"
         << "nearRadius = " << nearRadius << "\n"
@@ -673,7 +705,13 @@ bool Config::saveConfig(const std::string& filename)
     // makcu
     file << "# Makcu\n"
         << "makcu_baudrate = " << makcu_baudrate << "\n"
-		<< "makcu_port = " << makcu_port << "\n\n";
+        << "makcu_port = " << makcu_port << "\n\n";
+
+    // makcu keyboard monitor
+    file << "# Makcu Keyboard Monitor\n"
+        << "makcu_kb_enabled = " << (makcu_kb_enabled ? "true" : "false") << "\n"
+        << "makcu_kb_port = " << makcu_kb_port << "\n"
+        << "makcu_kb_baudrate = " << makcu_kb_baudrate << "\n\n";
 
     // Mouse shooting
     file << "# Mouse shooting\n"
@@ -688,6 +726,8 @@ bool Config::saveConfig(const std::string& filename)
         << "ai_model = " << ai_model << "\n"
         << std::fixed << std::setprecision(2)
         << "confidence_threshold = " << confidence_threshold << "\n"
+        << "head_confidence_threshold = " << head_confidence_threshold << "\n"
+        << "body_confidence_threshold = " << body_confidence_threshold << "\n"
         << "nms_threshold = " << nms_threshold << "\n"
         << std::setprecision(0)
         << "max_detections = " << max_detections << "\n"

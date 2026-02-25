@@ -101,11 +101,14 @@ std::vector<Detection> postProcessYolo(
         {
             const float* det = output + i * cols;
             float confidence = det[4];
+            int classId = static_cast<int>(det[5]);
 
-            if (confidence > confThreshold)
+            const float classThresh = (classId == config.class_head)
+                ? config.head_confidence_threshold
+                : config.body_confidence_threshold;
+
+            if (confidence > classThresh)
             {
-                int classId = static_cast<int>(det[5]);
-
                 float cx = det[0];
                 float cy = det[1];
                 float dx = det[2];
@@ -146,7 +149,10 @@ std::vector<Detection> postProcessYolo(
                 }
             }
 
-            if (maxScore > confThreshold)
+            const float classThresh2 = (maxClassId == config.class_head)
+                ? config.head_confidence_threshold
+                : config.body_confidence_threshold;
+            if (maxScore > classThresh2)
             {
                 const float half_ow = 0.5f * ow;
                 const float half_oh = 0.5f * oh;
@@ -196,9 +202,14 @@ std::vector<Detection> postProcessYoloDML(
         {
             const float* det = output + i * cols_i;
             float confidence = det[4];
-            if (confidence > confThreshold)
+            int classId = static_cast<int>(det[5]);
+
+            const float classThreshDml = (classId == config.class_head)
+                ? config.head_confidence_threshold
+                : config.body_confidence_threshold;
+
+            if (confidence > classThreshDml)
             {
-                int classId = static_cast<int>(det[5]);
                 float cx = det[0];
                 float cy = det[1];
                 float dx = det[2];
@@ -222,7 +233,13 @@ std::vector<Detection> postProcessYoloDML(
         cv::Point class_id_point;
         double score;
         cv::minMaxLoc(classes_scores, nullptr, &score, nullptr, &class_id_point);
-        if (score > confThreshold) {
+        {
+            const float classThreshDml2 = (class_id_point.y == config.class_head)
+                ? config.head_confidence_threshold
+                : config.body_confidence_threshold;
+            if (score <= static_cast<double>(classThreshDml2)) continue;
+        }
+        if (score > 0.0) {
             float cx = det_output.at<float>(0, i);
             float cy = det_output.at<float>(1, i);
             float ow = det_output.at<float>(2, i);

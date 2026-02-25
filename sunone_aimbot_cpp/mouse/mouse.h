@@ -42,6 +42,8 @@ private:
 
     double prev_x, prev_y;
     double prev_velocity_x, prev_velocity_y;
+    double smoothed_vx_ = 0.0;   // EMA-smoothed velocity X
+    double smoothed_vy_ = 0.0;   // EMA-smoothed velocity Y
     std::chrono::time_point<std::chrono::steady_clock> prev_time;
     std::chrono::steady_clock::time_point last_target_time;
     std::atomic<bool> target_detected{ false };

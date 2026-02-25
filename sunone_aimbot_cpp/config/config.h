@@ -41,6 +41,10 @@ public:
     int prediction_futurePositions;
     bool draw_futurePositions;
 
+    float prediction_smoothing;      // EMA alpha 0.0-0.9 (0 = off)
+    float jitter_suppression;        // 0.0-0.9, dampens reversal overshoots
+    float prediction_latency_ms;     // extra latency compensation (ms, replaces 0.002 s hard-code)
+
     float snapRadius;
     float nearRadius;
     float speedCurveExponent;
@@ -75,6 +79,11 @@ public:
     int makcu_baudrate;
     std::string makcu_port;
 
+    // makcu keyboard monitor (second device for native keyboard pass-through)
+    bool        makcu_kb_enabled;
+    std::string makcu_kb_port;
+    int         makcu_kb_baudrate;
+
     // Mouse shooting
     bool auto_shoot;
     float bScope_multiplier;
@@ -84,6 +93,8 @@ public:
     int dml_device_id;
     std::string ai_model;
     float confidence_threshold;
+    float head_confidence_threshold; // per-class threshold for head detections
+    float body_confidence_threshold; // per-class threshold for body detections
     float nms_threshold;
     int max_detections;
 #ifdef USE_CUDA

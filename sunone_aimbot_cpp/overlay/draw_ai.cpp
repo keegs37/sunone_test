@@ -15,8 +15,36 @@
 #include "trt_monitor.h"
 #endif
 
+namespace
+{
+    constexpr float kAiInputW  = 72.0f;
+    constexpr float kAiSpacing = 4.0f;
+
+    bool SliderFloatInput(const char* label, float* v, float vMin, float vMax, const char* fmt = "%.2f")
+    {
+        bool changed = false;
+        const float avail  = ImGui::GetContentRegionAvail().x;
+        const float sliderW = std::max(60.0f, avail - kAiInputW - kAiSpacing);
+
+        ImGui::PushID(label);
+        ImGui::SetNextItemWidth(sliderW);
+        changed |= ImGui::SliderFloat("##s", v, vMin, vMax, fmt);
+        ImGui::SameLine(0.0f, kAiSpacing);
+        ImGui::SetNextItemWidth(kAiInputW);
+        changed |= ImGui::InputFloat("##i", v, 0.0f, 0.0f, fmt);
+        *v = std::clamp(*v, vMin, vMax);
+        ImGui::PopID();
+
+        ImGui::SameLine();
+        ImGui::TextUnformatted(label);
+        return changed;
+    }
+}
+
 std::string prev_backend = config.backend;
-float prev_confidence_threshold = config.confidence_threshold;
+float prev_confidence_threshold      = config.confidence_threshold;
+float prev_head_confidence_threshold = config.head_confidence_threshold;
+float prev_body_confidence_threshold = config.body_confidence_threshold;
 float prev_nms_threshold = config.nms_threshold;
 int prev_max_detections = config.max_detections;
 
@@ -28,7 +56,9 @@ void draw_ai()
     if (!ai_state_initialized)
     {
         prev_backend = config.backend;
-        prev_confidence_threshold = config.confidence_threshold;
+        prev_confidence_threshold      = config.confidence_threshold;
+        prev_head_confidence_threshold = config.head_confidence_threshold;
+        prev_body_confidence_threshold = config.body_confidence_threshold;
         prev_nms_threshold = config.nms_threshold;
         prev_max_detections = config.max_detections;
         ai_state_initialized = true;
@@ -149,7 +179,9 @@ void draw_ai()
 
     if (OverlayUI::BeginSection("Detection", "ai_section_detection"))
     {
-        ImGui::SliderFloat("Confidence Threshold", &config.confidence_threshold, 0.01f, 1.00f, "%.2f");
+        SliderFloatInput("Body Confidence Threshold", &config.body_confidence_threshold, 0.01f, 1.00f, "%.2f");
+        SliderFloatInput("Head Confidence Threshold", &config.head_confidence_threshold, 0.01f, 1.00f, "%.2f");
+        ImGui::TextDisabled("Set per-class minimum confidence for detection. Head/body use separate thresholds.");
         ImGui::SliderFloat("NMS Threshold", &config.nms_threshold, 0.00f, 1.00f, "%.2f");
         ImGui::SliderInt("Max Detections", &config.max_detections, 1, 100);
         OverlayUI::EndSection();
@@ -157,13 +189,21 @@ void draw_ai()
 
     draw_depth();
         
-    if (prev_confidence_threshold != config.confidence_threshold ||
-        prev_nms_threshold != config.nms_threshold ||
-        prev_max_detections != config.max_detections)
+    if (prev_confidence_threshold      != config.confidence_threshold      ||
+        prev_head_confidence_threshold != config.head_confidence_threshold ||
+        prev_body_confidence_threshold != config.body_confidence_threshold ||
+        prev_nms_threshold             != config.nms_threshold             ||
+        prev_max_detections            != config.max_detections)
     {
-        prev_nms_threshold = config.nms_threshold;
-        prev_confidence_threshold = config.confidence_threshold;
-        prev_max_detections = config.max_detections;
+        prev_confidence_threshold      = config.confidence_threshold;
+        prev_head_confidence_threshold = config.head_confidence_threshold;
+        prev_body_confidence_threshold = config.body_confidence_threshold;
+        prev_nms_threshold             = config.nms_threshold;
+        prev_max_detections            = config.max_detections;
+        // Keep the legacy confidence_threshold in sync with the minimum of the two thresholds
+        // so existing code paths that use it directly continue to work.
+        config.confidence_threshold = std::min(config.head_confidence_threshold,
+                                               config.body_confidence_threshold);
         OverlayConfig_MarkDirty();
     }
 

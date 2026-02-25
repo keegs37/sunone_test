@@ -59,6 +59,8 @@ Arduino* arduinoSerial = nullptr;
 KmboxNetConnection* kmboxNetSerial = nullptr;
 KmboxAConnection* kmboxASerial = nullptr;
 MakcuConnection* makcuSerial = nullptr;
+MakcuKeyboardMonitor* makcuKeyboard = nullptr;
+std::atomic<bool> makcu_kb_changed(false);
 
 std::atomic<bool> detection_resolution_changed(false);
 std::atomic<bool> capture_method_changed(false);
@@ -1131,6 +1133,28 @@ void assignInputDevices()
     }
 }
 
+void createKeyboardMonitor()
+{
+    delete makcuKeyboard;
+    makcuKeyboard = nullptr;
+
+    if (!config.makcu_kb_enabled)
+        return;
+
+    makcuKeyboard = new MakcuKeyboardMonitor(
+        config.makcu_kb_port,
+        static_cast<unsigned int>(config.makcu_kb_baudrate)
+    );
+
+    if (!makcuKeyboard->isOpen())
+    {
+        std::cerr << "[MakcuKeyboard] Failed to open keyboard monitor on "
+                  << config.makcu_kb_port << std::endl;
+        delete makcuKeyboard;
+        makcuKeyboard = nullptr;
+    }
+}
+
 void handleEasyNoRecoil(MouseThread& mouseThread)
 {
     if (config.easynorecoil && shooting.load() && zooming.load())
@@ -1207,6 +1231,12 @@ void mouseThreadFunction(MouseThread& mouseThread)
             createInputDevices();
             assignInputDevices();
             input_method_changed.store(false);
+        }
+
+        if (makcu_kb_changed.load())
+        {
+            createKeyboardMonitor();
+            makcu_kb_changed.store(false);
         }
 
         if (detection_resolution_changed.load())
@@ -2137,6 +2167,7 @@ int main()
         }
 
         createInputDevices();
+        createKeyboardMonitor();
 
         MouseThread mouseThread(
             config.detection_resolution,
@@ -2271,6 +2302,12 @@ int main()
         {
             delete kmboxASerial;
             kmboxASerial = nullptr;
+        }
+
+        if (makcuKeyboard)
+        {
+            delete makcuKeyboard;
+            makcuKeyboard = nullptr;
         }
 
         if (dml_detector)

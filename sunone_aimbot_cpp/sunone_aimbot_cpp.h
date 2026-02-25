@@ -12,6 +12,7 @@
 #include "KmboxNetConnection.h"
 #include "KmboxAConnection.h"
 #include "Makcu.h"
+#include "MakcuKeyboard.h"
 #include <mutex>
 
 extern Config config;
@@ -25,6 +26,8 @@ extern Arduino* arduinoSerial;
 extern KmboxNetConnection* kmboxNetSerial;
 extern KmboxAConnection* kmboxASerial;
 extern MakcuConnection* makcuSerial;
+extern MakcuKeyboardMonitor* makcuKeyboard;
+extern std::atomic<bool> makcu_kb_changed;
 extern std::atomic<bool> input_method_changed;
 extern std::atomic<bool> aiming;
 extern std::atomic<bool> shooting;

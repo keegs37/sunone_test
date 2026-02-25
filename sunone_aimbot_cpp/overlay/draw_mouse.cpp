@@ -90,6 +90,10 @@ float prev_wind_D = config.wind_D;
 bool prev_auto_shoot = config.auto_shoot;
 float prev_bScope_multiplier = config.bScope_multiplier;
 
+float prev_prediction_smoothing  = config.prediction_smoothing;
+float prev_jitter_suppression    = config.jitter_suppression;
+float prev_prediction_latency_ms = config.prediction_latency_ms;
+
 void draw_mouse()
 {
     if (OverlayUI::BeginSection("FOV", "mouse_section_fov"))
@@ -141,6 +145,14 @@ void draw_mouse()
             ImGui::EndDisabled();
             ImGui::TextDisabled("Enable Prediction Interval (> 0) to edit this section.");
         }
+
+        ImGui::Spacing();
+        SliderFloatInput("Velocity Smoothing", &config.prediction_smoothing, 0.0f, 0.9f, "%.2f");
+        ImGui::TextDisabled("0 = raw velocity, higher = smoother but slower response");
+        SliderFloatInput("Jitter Suppression", &config.jitter_suppression, 0.0f, 0.9f, "%.2f");
+        ImGui::TextDisabled("Dampens prediction when target reverses direction");
+        SliderFloatInput("Extra Latency (ms)", &config.prediction_latency_ms, 0.0f, 20.0f, "%.1f");
+        ImGui::TextDisabled("Additional lag compensation added to prediction interval");
 
         OverlayUI::EndSection();
     }
@@ -771,6 +783,16 @@ void draw_mouse()
             config.auto_shoot,
             config.bScope_multiplier);
 
+        OverlayConfig_MarkDirty();
+    }
+
+    if (prev_prediction_smoothing  != config.prediction_smoothing  ||
+        prev_jitter_suppression    != config.jitter_suppression    ||
+        prev_prediction_latency_ms != config.prediction_latency_ms)
+    {
+        prev_prediction_smoothing  = config.prediction_smoothing;
+        prev_jitter_suppression    = config.jitter_suppression;
+        prev_prediction_latency_ms = config.prediction_latency_ms;
         OverlayConfig_MarkDirty();
     }
 }

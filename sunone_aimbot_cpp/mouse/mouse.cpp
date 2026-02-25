@@ -511,6 +511,7 @@ void MouseThread::moveMousePivot(double pivotX, double pivotY)
         prev_time = current_time;
         prev_x = pivotX; prev_y = pivotY;
         prev_velocity_x = prev_velocity_y = 0.0;
+        smoothed_vx_ = smoothed_vy_ = 0.0;
 
         auto m0 = calc_movement(pivotX, pivotY);
         const int mx0 = static_cast<int>(m0.first);
@@ -529,10 +530,29 @@ void MouseThread::moveMousePivot(double pivotX, double pivotY)
     double vx = std::clamp((pivotX - prev_x) / dt, -20000.0, 20000.0);
     double vy = std::clamp((pivotY - prev_y) / dt, -20000.0, 20000.0);
     prev_x = pivotX; prev_y = pivotY;
-    prev_velocity_x = vx;  prev_velocity_y = vy;
 
-    double predX = pivotX + vx * prediction_interval + vx * 0.002;
-    double predY = pivotY + vy * prediction_interval + vy * 0.002;
+    // EMA velocity smoothing (alpha = prediction_smoothing; 0.0 = pass-through)
+    const double alpha = std::clamp(static_cast<double>(config.prediction_smoothing), 0.0, 0.9);
+    smoothed_vx_ = smoothed_vx_ * alpha + vx * (1.0 - alpha);
+    smoothed_vy_ = smoothed_vy_ * alpha + vy * (1.0 - alpha);
+
+    // Jitter suppression: dampen prediction when velocity direction reverses
+    double jitter = std::clamp(static_cast<double>(config.jitter_suppression), 0.0, 0.9);
+    {
+        const double dot = smoothed_vx_ * prev_velocity_x + smoothed_vy_ * prev_velocity_y;
+        const double mag = std::hypot(prev_velocity_x, prev_velocity_y)
+                         * std::hypot(smoothed_vx_, smoothed_vy_);
+        if (mag > 1.0 && dot / mag < 0.0)
+            jitter = std::min(jitter + 0.3, 0.95);
+    }
+
+    prev_velocity_x = smoothed_vx_;
+    prev_velocity_y = smoothed_vy_;
+
+    const double t_pred = prediction_interval
+        + static_cast<double>(config.prediction_latency_ms) * 0.001;
+    double predX = pivotX + smoothed_vx_ * t_pred * (1.0 - jitter);
+    double predY = pivotY + smoothed_vy_ * t_pred * (1.0 - jitter);
 
     auto mv = calc_movement(predX, predY);
     int mx = static_cast<int>(mv.first);
@@ -675,6 +695,8 @@ void MouseThread::resetPrediction()
     prev_y = 0;
     prev_velocity_x = 0;
     prev_velocity_y = 0;
+    smoothed_vx_ = 0.0;
+    smoothed_vy_ = 0.0;
     target_detected.store(false);
 }
 

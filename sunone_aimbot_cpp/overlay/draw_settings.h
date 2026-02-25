@@ -14,5 +14,6 @@ void draw_depth();
 void load_body_texture();
 void release_body_texture();
 void draw_game_overlay_settings();
+void draw_keyboard_monitor();
 
 #endif // DRAW_SETTINGS_H

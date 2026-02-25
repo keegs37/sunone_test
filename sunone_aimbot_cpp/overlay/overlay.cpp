@@ -323,6 +323,7 @@ static const OverlayTabItem kOverlayTabs[] = {
     { "Buttons",       "Control", "Hotkeys for features and runtime actions.",           draw_buttons },
     { "Overlay",       "Control", "Editor appearance and privacy options.",              draw_overlay },
     { "Game Overlay",  "Control", "In-game render visuals and simulation options.",      draw_game_overlay_settings },
+    { "KB Monitor",    "Control", "Second Makcu keyboard pass-through monitor.",          draw_keyboard_monitor },
     { "Stats",         "Monitor", "Performance and timing graphs.",                      draw_stats },
     { "Debug",         "Monitor", "Screenshot bindings and diagnostics.",                draw_debug },
 };
