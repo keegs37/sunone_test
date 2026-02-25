@@ -16,6 +16,61 @@
 
 std::string ghub_version = get_ghub_version();
 
+// ---------------------------------------------------------------------------
+// Helpers: slider + numeric-input field rendered side by side.
+// The slider lets you scrub quickly; the input box lets you type an exact value.
+// ---------------------------------------------------------------------------
+namespace
+{
+    // Shared formatting widths
+    static constexpr float kInputW = 72.0f;
+    static constexpr float kSpacing = 4.0f;
+
+    bool SliderIntInput(const char* label, int* v, int vMin, int vMax)
+    {
+        bool changed = false;
+        const float avail = ImGui::GetContentRegionAvail().x;
+        const float sliderW = std::max(60.0f, avail - kInputW - kSpacing * 2.0f - ImGui::CalcTextSize(label).x - ImGui::GetStyle().ItemSpacing.x);
+
+        ImGui::PushID(label);
+        ImGui::SetNextItemWidth(sliderW);
+        changed |= ImGui::SliderInt("##s", v, vMin, vMax);
+        ImGui::SameLine(0.0f, kSpacing);
+        ImGui::SetNextItemWidth(kInputW);
+        if (ImGui::InputInt("##i", v, 0, 0))
+        {
+            *v = std::clamp(*v, vMin, vMax);
+            changed = true;
+        }
+        ImGui::SameLine(0.0f, kSpacing);
+        ImGui::TextUnformatted(label);
+        ImGui::PopID();
+        return changed;
+    }
+
+    bool SliderFloatInput(const char* label, float* v, float vMin, float vMax, const char* fmt = "%.2f")
+    {
+        bool changed = false;
+        const float avail = ImGui::GetContentRegionAvail().x;
+        const float sliderW = std::max(60.0f, avail - kInputW - kSpacing * 2.0f - ImGui::CalcTextSize(label).x - ImGui::GetStyle().ItemSpacing.x);
+
+        ImGui::PushID(label);
+        ImGui::SetNextItemWidth(sliderW);
+        changed |= ImGui::SliderFloat("##s", v, vMin, vMax, fmt);
+        ImGui::SameLine(0.0f, kSpacing);
+        ImGui::SetNextItemWidth(kInputW);
+        if (ImGui::InputFloat("##i", v, 0.0f, 0.0f, fmt))
+        {
+            *v = std::clamp(*v, vMin, vMax);
+            changed = true;
+        }
+        ImGui::SameLine(0.0f, kSpacing);
+        ImGui::TextUnformatted(label);
+        ImGui::PopID();
+        return changed;
+    }
+} // namespace
+
 int prev_fovX = config.fovX;
 int prev_fovY = config.fovY;
 float prev_minSpeedMultiplier = config.minSpeedMultiplier;
@@ -39,24 +94,23 @@ void draw_mouse()
 {
     if (OverlayUI::BeginSection("FOV", "mouse_section_fov"))
     {
-        ImGui::SliderInt("FOV X", &config.fovX, 10, 120);
-        ImGui::SliderInt("FOV Y", &config.fovY, 10, 120);
+        SliderIntInput("FOV X", &config.fovX, 10, 120);
+        SliderIntInput("FOV Y", &config.fovY, 10, 120);
         OverlayUI::EndSection();
     }
 
     if (OverlayUI::BeginSection("Speed Multiplier", "mouse_section_speed_multiplier"))
     {
-        ImGui::SliderFloat("Min Speed Multiplier", &config.minSpeedMultiplier, 0.1f, 5.0f, "%.1f");
-        ImGui::SliderFloat("Max Speed Multiplier", &config.maxSpeedMultiplier, 0.1f, 5.0f, "%.1f");
+        SliderFloatInput("Min Speed Multiplier", &config.minSpeedMultiplier, 0.1f, 5.0f, "%.1f");
+        SliderFloatInput("Max Speed Multiplier", &config.maxSpeedMultiplier, 0.1f, 5.0f, "%.1f");
         OverlayUI::EndSection();
     }
 
     if (OverlayUI::BeginSection("Prediction", "mouse_section_prediction"))
     {
-        ImGui::SliderFloat("Prediction Interval", &config.predictionInterval, 0.00f, 0.5f, "%.2f");
+        SliderFloatInput("Prediction Interval", &config.predictionInterval, 0.00f, 0.5f, "%.2f");
         if (config.predictionInterval == 0.00f)
         {
-            ImGui::SameLine();
             ImGui::TextColored(ImVec4(255, 0, 0, 255), "-> Disabled");
         }
 
@@ -65,19 +119,23 @@ void draw_mouse()
         {
             ImGui::BeginDisabled();
         }
-        
-        if (ImGui::SliderInt("Future Positions", &config.prediction_futurePositions, 1, 40))
+
         {
-            OverlayConfig_MarkDirty();
-            input_method_changed.store(true);
+            int futurePos = config.prediction_futurePositions;
+            if (SliderIntInput("Future Positions", &futurePos, 1, 40))
+            {
+                config.prediction_futurePositions = futurePos;
+                OverlayConfig_MarkDirty();
+                input_method_changed.store(true);
+            }
         }
-        
+
         ImGui::SameLine();
         if (ImGui::Checkbox("Draw##draw_future_positions_button", &config.draw_futurePositions))
         {
             OverlayConfig_MarkDirty();
         }
-        
+
         if (!predictionEnabled)
         {
             ImGui::EndDisabled();
@@ -89,10 +147,10 @@ void draw_mouse()
 
     if (OverlayUI::BeginSection("Target correction", "mouse_section_target_correction"))
     {
-        ImGui::SliderFloat("Snap Radius", &config.snapRadius, 0.1f, 5.0f, "%.1f");
-        ImGui::SliderFloat("Near Radius", &config.nearRadius, 1.0f, 40.0f, "%.1f");
-        ImGui::SliderFloat("Speed Curve Exponent", &config.speedCurveExponent, 0.1f, 10.0f, "%.1f");
-        ImGui::SliderFloat("Snap Boost Factor", &config.snapBoostFactor, 0.01f, 4.00f, "%.2f");
+        SliderFloatInput("Snap Radius", &config.snapRadius, 0.1f, 5.0f, "%.1f");
+        SliderFloatInput("Near Radius", &config.nearRadius, 1.0f, 40.0f, "%.1f");
+        SliderFloatInput("Speed Curve Exponent", &config.speedCurveExponent, 0.1f, 10.0f, "%.1f");
+        SliderFloatInput("Snap Boost Factor", &config.snapBoostFactor, 0.01f, 4.00f, "%.2f");
         OverlayUI::EndSection();
     }
 
@@ -151,14 +209,14 @@ void draw_mouse()
             float pitch_f = static_cast<float>(modifiable.pitch);
             float baseFOV_f = static_cast<float>(modifiable.baseFOV);
 
-            changed |= ImGui::SliderFloat("Sensitivity", &sens_f, 0.001f, 10.0f, "%.4f");
-            changed |= ImGui::SliderFloat("Yaw", &yaw_f, 0.001f, 0.1f, "%.4f");
-            changed |= ImGui::SliderFloat("Pitch", &pitch_f, 0.001f, 0.1f, "%.4f");
+            changed |= SliderFloatInput("Sensitivity", &sens_f, 0.001f, 10.0f, "%.4f");
+            changed |= SliderFloatInput("Yaw", &yaw_f, 0.001f, 0.1f, "%.4f");
+            changed |= SliderFloatInput("Pitch", &pitch_f, 0.001f, 0.1f, "%.4f");
 
             changed |= ImGui::Checkbox("FOV Scaled", &modifiable.fovScaled);
             if (modifiable.fovScaled)
             {
-                changed |= ImGui::SliderFloat("Base FOV", &baseFOV_f, 10.0f, 180.0f, "%.1f");
+                changed |= SliderFloatInput("Base FOV", &baseFOV_f, 10.0f, 180.0f, "%.1f");
             }
 
             if (changed)
@@ -235,7 +293,7 @@ void draw_mouse()
             ImGui::BeginDisabled();
         }
 
-        ImGui::SliderFloat("No Recoil Strength", &config.easynorecoilstrength, 0.1f, 500.0f, "%.1f");
+        SliderFloatInput("No Recoil Strength", &config.easynorecoilstrength, 0.1f, 500.0f, "%.1f");
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Left/Right Arrow keys: Adjust recoil strength by 10");
 
         if (config.easynorecoilstrength >= 100.0f)
@@ -260,7 +318,7 @@ void draw_mouse()
             ImGui::BeginDisabled();
         }
 
-        ImGui::SliderFloat("bScope Multiplier", &config.bScope_multiplier, 0.5f, 2.0f, "%.1f");
+        SliderFloatInput("bScope Multiplier", &config.bScope_multiplier, 0.5f, 2.0f, "%.1f");
 
         if (!config.auto_shoot)
         {
@@ -284,22 +342,22 @@ void draw_mouse()
             ImGui::BeginDisabled();
         }
 
-        if (ImGui::SliderFloat("Gravity force", &config.wind_G, 4.00f, 40.00f, "%.2f"))
+        if (SliderFloatInput("Gravity force", &config.wind_G, 4.00f, 40.00f, "%.2f"))
         {
             OverlayConfig_MarkDirty();
         }
 
-        if (ImGui::SliderFloat("Wind fluctuation", &config.wind_W, 1.00f, 40.00f, "%.2f"))
+        if (SliderFloatInput("Wind fluctuation", &config.wind_W, 1.00f, 40.00f, "%.2f"))
         {
             OverlayConfig_MarkDirty();
         }
 
-        if (ImGui::SliderFloat("Max step (velocity clip)", &config.wind_M, 1.00f, 40.00f, "%.2f"))
+        if (SliderFloatInput("Max step (velocity clip)", &config.wind_M, 1.00f, 40.00f, "%.2f"))
         {
             OverlayConfig_MarkDirty();
         }
 
-        if (ImGui::SliderFloat("Distance where behaviour changes", &config.wind_D, 1.00f, 40.00f, "%.2f"))
+        if (SliderFloatInput("Distance where behaviour changes", &config.wind_D, 1.00f, 40.00f, "%.2f"))
         {
             OverlayConfig_MarkDirty();
         }

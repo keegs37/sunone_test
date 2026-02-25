@@ -118,6 +118,19 @@ void draw_buttons()
     drawBindingSection("Reload Config Buttons", "buttons_section_reload", "Reload config Button", config.button_reload_config);
     drawBindingSection("Overlay Buttons", "buttons_section_overlay", "Overlay Button", config.button_open_overlay);
 
+    // Dedicated Auto-Shoot button — must be held for auto-shoot to fire.
+    // Set to "None" to use the original always-active behaviour.
+    if (OverlayUI::BeginSection("Auto Shoot Button (Dedicated)", "buttons_section_auto_shoot"))
+    {
+        ImGui::TextWrapped(
+            "Optional: hold this button to enable Auto Shoot.\n"
+            "Set to \"None\" to fire automatically whenever aiming (default).");
+        ImGui::Spacing();
+        if (drawButtonBindingRows("AutoShoot", config.button_auto_shoot, /*keepAtLeastOne=*/true))
+            OverlayConfig_MarkDirty();
+        OverlayUI::EndSection();
+    }
+
     if (OverlayUI::BeginSection("Arrow Key Options", "buttons_section_arrows"))
     {
         if (ImGui::Checkbox("Enable arrows keys options", &config.enable_arrows_settings))

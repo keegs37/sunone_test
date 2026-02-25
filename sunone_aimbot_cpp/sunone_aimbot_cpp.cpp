@@ -72,6 +72,8 @@ std::atomic<bool> input_method_changed(false);
 
 std::atomic<bool> zooming(false);
 std::atomic<bool> shooting(false);
+// True when the dedicated auto-shoot button is held (or always true when no button is bound).
+std::atomic<bool> auto_shooting_active(true);
 
 static std::string g_lastIconPath;
 static int g_iconImageId = 0;
@@ -1291,7 +1293,7 @@ void mouseThreadFunction(MouseThread& mouseThread)
             {
                 mouseThread.moveMousePivot(activeTarget->pivotX, activeTarget->pivotY);
 
-                if (config.auto_shoot)
+                if (config.auto_shoot && auto_shooting_active.load())
                 {
                     mouseThread.pressMouse(*activeTarget);
                 }

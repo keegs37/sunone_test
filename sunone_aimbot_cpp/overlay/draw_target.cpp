@@ -17,6 +17,35 @@
 ID3D11ShaderResourceView* bodyTexture = nullptr;
 ImVec2 bodyImageSize;
 
+// Slider + numeric-input helper (local to this translation unit)
+namespace
+{
+    static constexpr float kTargetInputW  = 72.0f;
+    static constexpr float kTargetSpacing = 4.0f;
+
+    bool SliderFloatInput(const char* label, float* v, float vMin, float vMax, const char* fmt = "%.2f")
+    {
+        bool changed = false;
+        const float avail = ImGui::GetContentRegionAvail().x;
+        const float sliderW = std::max(60.0f, avail - kTargetInputW - kTargetSpacing * 2.0f
+            - ImGui::CalcTextSize(label).x - ImGui::GetStyle().ItemSpacing.x);
+        ImGui::PushID(label);
+        ImGui::SetNextItemWidth(sliderW);
+        changed |= ImGui::SliderFloat("##s", v, vMin, vMax, fmt);
+        ImGui::SameLine(0.0f, kTargetSpacing);
+        ImGui::SetNextItemWidth(kTargetInputW);
+        if (ImGui::InputFloat("##i", v, 0.0f, 0.0f, fmt))
+        {
+            *v = std::clamp(*v, vMin, vMax);
+            changed = true;
+        }
+        ImGui::SameLine(0.0f, kTargetSpacing);
+        ImGui::TextUnformatted(label);
+        ImGui::PopID();
+        return changed;
+    }
+} // namespace
+
 bool prev_disable_headshot = config.disable_headshot;
 float prev_body_y_offset = config.body_y_offset;
 float prev_head_y_offset = config.head_y_offset;
@@ -38,8 +67,8 @@ void draw_target()
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Arrow keys: Adjust body offset");
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Shift+Arrow keys: Adjust head offset");
 
-        ImGui::SliderFloat("Approximate Body Y Offset", &config.body_y_offset, 0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Approximate Head Y Offset", &config.head_y_offset, 0.0f, 1.0f, "%.2f");
+        SliderFloatInput("Approximate Body Y Offset", &config.body_y_offset, 0.0f, 1.0f, "%.2f");
+        SliderFloatInput("Approximate Head Y Offset", &config.head_y_offset, 0.0f, 1.0f, "%.2f");
         OverlayUI::EndSection();
     }
 

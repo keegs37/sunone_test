@@ -137,7 +137,8 @@ int MultiTargetTracker::findTrackIndexById(int id) const
 int MultiTargetTracker::allowedMissedFrames(const TrackState& t) const
 {
     // Keep the locked target alive longer to survive short occlusion/fast motion bursts.
-    const int lockedBonus = (t.id == lockedTrackId_) ? 8 : 0;
+    // Increased lockedBonus from 8 to 14 for better lock persistence during fast motion.
+    const int lockedBonus = (t.id == lockedTrackId_) ? 14 : 0;
     return maxMissedFrames_ + lockedBonus;
 }
 
@@ -170,9 +171,14 @@ int MultiTargetTracker::chooseBestTrack(int screenWidth, int screenHeight) const
         const double dx = t.pivotX - cx;
         const double dy = t.pivotY - cy;
         const double dist = std::hypot(dx, dy);
-        const double hitBonus = std::min(5, t.hits) * 4.0;
+        const double hitBonus = std::min(8, t.hits) * 5.0;
         const double missPenalty = t.missed * 50.0;
-        const double score = dist + missPenalty - hitBonus;
+        double score = dist + missPenalty - hitBonus;
+
+        // Apply hysteresis: give the currently locked target a score advantage
+        // so we only switch when a challenger is meaningfully better (>28% improvement).
+        if (t.id == lockedTrackId_)
+            score *= 0.72;
 
         if (score < bestScore)
         {
@@ -359,12 +365,15 @@ void MultiTargetTracker::update(
 
             const double diag = std::hypot(static_cast<double>(t.box.width), static_cast<double>(t.box.height));
             const double speed = std::hypot(t.velocity.x, t.velocity.y);
-            const double baseGate = std::max(24.0, diag * 1.15 + 10.0);
-            const double speedGate = speed * dt * (1.8 + t.missed * 0.35);
-            const double missGate = t.missed * std::max(14.0, diag * 0.18);
+            // Wider base gate for small (distant) targets whose bounding boxes are tiny.
+            const double distantScale = (diag < 28.0) ? (1.0 + (28.0 - diag) / 28.0 * 0.8) : 1.0;
+            const double baseGate = std::max(28.0, diag * 1.25 + 12.0) * distantScale;
+            // Increased speed coefficient (2.4 was 1.8) for better fast-target association.
+            const double speedGate = speed * dt * (2.4 + t.missed * 0.45);
+            const double missGate = t.missed * std::max(16.0, diag * 0.22);
             double maxDist = baseGate + speedGate + missGate;
             if (relaxedForLocked)
-                maxDist *= 1.6;
+                maxDist *= 1.8;
 
             if (dist > maxDist)
                 return std::numeric_limits<double>::infinity();
@@ -476,14 +485,21 @@ void MultiTargetTracker::update(
 
             cv::Point2f clampedRawVel = rawVel;
             const double rawSpeed = std::hypot(clampedRawVel.x, clampedRawVel.y);
-            const double maxReasonableSpeed = std::max(screenWidth, screenHeight) * 3.5;
+            // Raised speed cap (6x screen dimension was 3.5x) to track fast-moving targets.
+            const double maxReasonableSpeed = std::max(screenWidth, screenHeight) * 6.0;
             if (rawSpeed > maxReasonableSpeed && rawSpeed > 1e-4)
             {
                 const float scale = static_cast<float>(maxReasonableSpeed / rawSpeed);
                 clampedRawVel *= scale;
             }
 
-            const float blend = (t.id == lockedTrackId_) ? 0.45f : 0.35f;
+            // Adaptive blend: increase responsiveness proportionally to target speed
+            // so fast-moving targets are tracked more aggressively.
+            const double screenDiag = std::hypot(static_cast<double>(screenWidth), static_cast<double>(screenHeight));
+            const float fastFactor = static_cast<float>(std::min(1.0, rawSpeed / (screenDiag * 1.5)));
+            const float blend = (t.id == lockedTrackId_)
+                ? (0.45f + 0.22f * fastFactor)   // 0.45 → 0.67 for fast locked target
+                : (0.35f + 0.18f * fastFactor);   // 0.35 → 0.53 for fast untracked target
             t.velocity = t.velocity * (1.0f - blend) + clampedRawVel * blend;
             t.box = d.box;
             t.pivotX = d.pivotX;
@@ -504,7 +520,9 @@ void MultiTargetTracker::update(
             t.box.y += t.velocity.y * static_cast<float>(dt);
             t.pivotX += t.velocity.x * dt;
             t.pivotY += t.velocity.y * dt;
-            const float decay = (t.id == lockedTrackId_) ? 0.90f : 0.84f;
+            // Slower velocity decay for locked target so prediction coasts further
+            // when detection is momentarily lost (e.g. occlusion or fast pan).
+            const float decay = (t.id == lockedTrackId_) ? 0.94f : 0.86f;
             t.velocity *= decay;
             t.missed += 1;
             t.observedThisFrame = false;
