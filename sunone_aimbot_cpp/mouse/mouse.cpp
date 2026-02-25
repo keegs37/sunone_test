@@ -52,6 +52,8 @@ MouseThread::MouseThread(
 
     prev_velocity_x(0.0),
     prev_velocity_y(0.0),
+    smooth_velocity_x(0.0),
+    smooth_velocity_y(0.0),
     prev_x(0.0),
     prev_y(0.0)
 {
@@ -359,34 +361,43 @@ std::pair<double, double> MouseThread::predict_target_position(double target_x, 
     double dt = std::chrono::duration<double>(current_time - prev_time).count();
     if (dt < 1e-8) dt = 1e-8;
 
-    double vx = (target_x - prev_x) / dt;
-    double vy = (target_y - prev_y) / dt;
+    double rawVx = (target_x - prev_x) / dt;
+    double rawVy = (target_y - prev_y) / dt;
 
-    vx = std::clamp(vx, -20000.0, 20000.0);
-    vy = std::clamp(vy, -20000.0, 20000.0);
+    rawVx = std::clamp(rawVx, -20000.0, 20000.0);
+    rawVy = std::clamp(rawVy, -20000.0, 20000.0);
+
+    // EMA velocity smoothing to suppress per-frame detection jitter.
+    smooth_velocity_x = kVelocityAlpha * rawVx + (1.0 - kVelocityAlpha) * smooth_velocity_x;
+    smooth_velocity_y = kVelocityAlpha * rawVy + (1.0 - kVelocityAlpha) * smooth_velocity_y;
+
+    // Acceleration estimate from smoothed velocity delta.
+    double ax = std::clamp((smooth_velocity_x - prev_velocity_x) / dt, -50000.0, 50000.0);
+    double ay = std::clamp((smooth_velocity_y - prev_velocity_y) / dt, -50000.0, 50000.0);
 
     prev_time = current_time;
     prev_x = target_x;
     prev_y = target_y;
-    prev_velocity_x = vx;
-    prev_velocity_y = vy;
+    prev_velocity_x = smooth_velocity_x;
+    prev_velocity_y = smooth_velocity_y;
 
-    double predictedX = target_x + vx * prediction_interval;
-    double predictedY = target_y + vy * prediction_interval;
-
+    // Detection delay in seconds (lastInferenceTime*.count() returns milliseconds).
     double detectionDelay = 0.05;
     if (config.backend == "DML")
     {
-        detectionDelay = dml_detector->lastInferenceTimeDML.count();
+        detectionDelay = dml_detector->lastInferenceTimeDML.count() / 1000.0;
     }
 #ifdef USE_CUDA
     else
     {
-        detectionDelay = trt_detector.lastInferenceTime.count();
+        detectionDelay = trt_detector.lastInferenceTime.count() / 1000.0;
     }
 #endif
-    predictedX += vx * detectionDelay;
-    predictedY += vy * detectionDelay;
+
+    // Second-order prediction: pos + vel*t + 0.5*accel*t^2
+    double totalTime = prediction_interval + detectionDelay;
+    double predictedX = target_x + smooth_velocity_x * totalTime + 0.5 * ax * totalTime * totalTime;
+    double predictedY = target_y + smooth_velocity_y * totalTime + 0.5 * ay * totalTime * totalTime;
 
     return { predictedX, predictedY };
 }
@@ -492,9 +503,7 @@ void MouseThread::moveMouse(const AimbotTarget& target)
 {
     std::lock_guard lg(input_method_mutex);
 
-    auto predicted = predict_target_position(
-        target.x + target.w / 2.0,
-        target.y + target.h / 2.0);
+    auto predicted = predict_target_position(target.pivotX, target.pivotY);
 
     auto mv = calc_movement(predicted.first, predicted.second);
     queueMove(static_cast<int>(mv.first), static_cast<int>(mv.second));
@@ -526,13 +535,26 @@ void MouseThread::moveMousePivot(double pivotX, double pivotY)
     prev_time = current_time;
     dt = std::max(dt, 1e-8);
 
-    double vx = std::clamp((pivotX - prev_x) / dt, -20000.0, 20000.0);
-    double vy = std::clamp((pivotY - prev_y) / dt, -20000.0, 20000.0);
-    prev_x = pivotX; prev_y = pivotY;
-    prev_velocity_x = vx;  prev_velocity_y = vy;
+    double rawVx = std::clamp((pivotX - prev_x) / dt, -20000.0, 20000.0);
+    double rawVy = std::clamp((pivotY - prev_y) / dt, -20000.0, 20000.0);
 
-    double predX = pivotX + vx * prediction_interval + vx * 0.002;
-    double predY = pivotY + vy * prediction_interval + vy * 0.002;
+    // EMA velocity smoothing
+    smooth_velocity_x = kVelocityAlpha * rawVx + (1.0 - kVelocityAlpha) * smooth_velocity_x;
+    smooth_velocity_y = kVelocityAlpha * rawVy + (1.0 - kVelocityAlpha) * smooth_velocity_y;
+
+    // Acceleration estimate
+    double ax = std::clamp((smooth_velocity_x - prev_velocity_x) / dt, -50000.0, 50000.0);
+    double ay = std::clamp((smooth_velocity_y - prev_velocity_y) / dt, -50000.0, 50000.0);
+
+    prev_x = pivotX; prev_y = pivotY;
+    prev_velocity_x = smooth_velocity_x;
+    prev_velocity_y = smooth_velocity_y;
+
+    // Second-order prediction
+    double predX = pivotX + smooth_velocity_x * prediction_interval
+                          + 0.5 * ax * prediction_interval * prediction_interval;
+    double predY = pivotY + smooth_velocity_y * prediction_interval
+                          + 0.5 * ay * prediction_interval * prediction_interval;
 
     auto mv = calc_movement(predX, predY);
     int mx = static_cast<int>(mv.first);
@@ -675,6 +697,8 @@ void MouseThread::resetPrediction()
     prev_y = 0;
     prev_velocity_x = 0;
     prev_velocity_y = 0;
+    smooth_velocity_x = 0;
+    smooth_velocity_y = 0;
     target_detected.store(false);
 }
 
@@ -694,7 +718,7 @@ std::vector<std::pair<double, double>> MouseThread::predictFuturePositions(doubl
     std::vector<std::pair<double, double>> result;
     result.reserve(frames);
 
-    const double fixedFps = 30.0;
+    const double fixedFps = std::max(1.0, static_cast<double>(captureFps.load()));
     double frame_time = 1.0 / fixedFps;
 
     auto current_time = std::chrono::steady_clock::now();
@@ -705,8 +729,8 @@ std::vector<std::pair<double, double>> MouseThread::predictFuturePositions(doubl
         return result;
     }
 
-    double vx = prev_velocity_x;
-    double vy = prev_velocity_y;
+    double vx = smooth_velocity_x;
+    double vy = smooth_velocity_y;
     
     for (int i = 1; i <= frames; i++)
     {

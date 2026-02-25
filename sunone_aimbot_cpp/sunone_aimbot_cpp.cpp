@@ -59,6 +59,7 @@ Arduino* arduinoSerial = nullptr;
 KmboxNetConnection* kmboxNetSerial = nullptr;
 KmboxAConnection* kmboxASerial = nullptr;
 MakcuConnection* makcuSerial = nullptr;
+MakcuKeyboardMonitor* makcuKeyboard = nullptr;
 
 std::atomic<bool> detection_resolution_changed(false);
 std::atomic<bool> capture_method_changed(false);
@@ -1060,6 +1061,12 @@ void createInputDevices()
         makcuSerial = nullptr;
     }
 
+    if (makcuKeyboard)
+    {
+        delete makcuKeyboard;
+        makcuKeyboard = nullptr;
+    }
+
     if (config.input_method == "ARDUINO")
     {
         std::cout << "[Mouse] Using Arduino method input." << std::endl;
@@ -1116,6 +1123,23 @@ void createInputDevices()
     else
     {
         std::cout << "[Mouse] Using default Win32 method input." << std::endl;
+    }
+
+    // Initialize MAKCU keyboard monitor (independent of mouse input method).
+    if (config.makcu_keyboard_enable)
+    {
+        std::cout << "[MakcuKeyboard] Initializing keyboard monitor on port: "
+                  << config.makcu_keyboard_port << std::endl;
+        makcuKeyboard = new MakcuKeyboardMonitor(
+            config.makcu_keyboard_port,
+            static_cast<unsigned int>(config.makcu_keyboard_baudrate)
+        );
+        if (!makcuKeyboard->isOpen())
+        {
+            std::cerr << "[MakcuKeyboard] Failed to connect." << std::endl;
+            delete makcuKeyboard;
+            makcuKeyboard = nullptr;
+        }
     }
 }
 

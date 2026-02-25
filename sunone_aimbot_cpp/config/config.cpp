@@ -118,6 +118,11 @@ bool Config::loadConfig(const std::string& filename)
         makcu_baudrate = 115200;
         makcu_port = "COM0";
 
+        // makcu keyboard monitor
+        makcu_keyboard_enable = false;
+        makcu_keyboard_port = "COM0";
+        makcu_keyboard_baudrate = 115200;
+
         // Mouse shooting
         auto_shoot = false;
         bScope_multiplier = 1.0f;
@@ -413,6 +418,11 @@ bool Config::loadConfig(const std::string& filename)
     makcu_baudrate = get_long("makcu_baudrate", 115200);
     makcu_port = get_string("makcu_port", "COM0");
 
+    // makcu keyboard monitor
+    makcu_keyboard_enable = get_bool("makcu_keyboard_enable", false);
+    makcu_keyboard_port = get_string("makcu_keyboard_port", "COM0");
+    makcu_keyboard_baudrate = get_long("makcu_keyboard_baudrate", 115200);
+
     // Mouse shooting
     auto_shoot = get_bool("auto_shoot", false);
     bScope_multiplier = (float)get_double("bScope_multiplier", 1.2);
@@ -673,7 +683,11 @@ bool Config::saveConfig(const std::string& filename)
     // makcu
     file << "# Makcu\n"
         << "makcu_baudrate = " << makcu_baudrate << "\n"
-		<< "makcu_port = " << makcu_port << "\n\n";
+        << "makcu_port = " << makcu_port << "\n"
+        << "# Makcu keyboard monitor (second MAKCU device for physical keyboard passthrough)\n"
+        << "makcu_keyboard_enable = " << (makcu_keyboard_enable ? "true" : "false") << "\n"
+        << "makcu_keyboard_port = " << makcu_keyboard_port << "\n"
+        << "makcu_keyboard_baudrate = " << makcu_keyboard_baudrate << "\n\n";
 
     // Mouse shooting
     file << "# Mouse shooting\n"
