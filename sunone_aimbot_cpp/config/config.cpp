@@ -93,6 +93,10 @@ bool Config::loadConfig(const std::string& filename)
         easynorecoilstrength = 0.0f;
         input_method = "WIN32";
 
+        // Strafe aim assist
+        strafe_aim_assist = false;
+        strafe_aim_strength = 0.0f;
+
         // Wind mouse
         wind_mouse_enabled = false;
         wind_G = 18.0f;
@@ -393,6 +397,10 @@ bool Config::loadConfig(const std::string& filename)
     easynorecoilstrength = (float)get_double("easynorecoilstrength", 0.0);
     input_method = get_string("input_method", "WIN32");
 
+    // Strafe aim assist
+    strafe_aim_assist = get_bool("strafe_aim_assist", false);
+    strafe_aim_strength = (float)get_double("strafe_aim_strength", 0.0);
+
     // Wind mouse
     wind_mouse_enabled = get_bool("wind_mouse_enabled", false);
     wind_G = (float)get_double("wind_G", 18.0f);
@@ -652,6 +660,10 @@ bool Config::saveConfig(const std::string& filename)
         << "easynorecoil = " << (easynorecoil ? "true" : "false") << "\n"
         << std::fixed << std::setprecision(1)
         << "easynorecoilstrength = " << easynorecoilstrength << "\n"
+
+        << "# Strafe Aim Assist: compensates horizontal aim drift when pressing A/D\n"
+        << "strafe_aim_assist = " << (strafe_aim_assist ? "true" : "false") << "\n"
+        << "strafe_aim_strength = " << strafe_aim_strength << "\n"
 
         << "# WIN32, GHUB, ARDUINO, KMBOX_NET, KMBOX_A, MAKCU\n"
         << "input_method = " << input_method << "\n\n";

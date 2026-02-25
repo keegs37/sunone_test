@@ -50,6 +50,10 @@ public:
     float easynorecoilstrength;
     std::string input_method; // "WIN32", "GHUB", "ARDUINO", "KMBOX_NET", "KMBOX_A", "MAKCU"
 
+    // Strafe aim assist (A/D key compensation)
+    bool strafe_aim_assist;
+    float strafe_aim_strength;
+
     // Wind mouse
     bool wind_mouse_enabled;
     float wind_G;

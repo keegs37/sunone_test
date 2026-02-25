@@ -310,6 +310,28 @@ void draw_mouse()
         OverlayUI::EndSection();
     }
 
+    if (OverlayUI::BeginSection("Strafe Aim Assist", "mouse_section_strafe_aim_assist"))
+    {
+        ImGui::Checkbox("Strafe Aim Assist", &config.strafe_aim_assist);
+        ImGui::TextWrapped("Monitors A/D key presses via MAKCU keyboard or Win32 and applies a horizontal aim correction while aiming to compensate for lateral movement.");
+
+        if (!config.strafe_aim_assist)
+        {
+            ImGui::BeginDisabled();
+        }
+
+        SliderFloatInput("Strafe Strength", &config.strafe_aim_strength, 0.1f, 50.0f, "%.1f");
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "A key: aim left | D key: aim right");
+
+        if (!config.strafe_aim_assist)
+        {
+            ImGui::EndDisabled();
+            ImGui::TextDisabled("Enable Strafe Aim Assist to edit settings.");
+        }
+
+        OverlayUI::EndSection();
+    }
+
     if (OverlayUI::BeginSection("Auto Shoot", "mouse_section_auto_shoot"))
     {
         ImGui::Checkbox("Auto Shoot", &config.auto_shoot);

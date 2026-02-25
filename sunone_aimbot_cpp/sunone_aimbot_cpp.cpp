@@ -75,6 +75,8 @@ std::atomic<bool> zooming(false);
 std::atomic<bool> shooting(false);
 // True when the dedicated auto-shoot button is held (or always true when no button is bound).
 std::atomic<bool> auto_shooting_active(true);
+std::atomic<bool> strafe_left(false);
+std::atomic<bool> strafe_right(false);
 
 static std::string g_lastIconPath;
 static int g_iconImageId = 0;
@@ -1194,6 +1196,62 @@ void handleEasyNoRecoil(MouseThread& mouseThread)
     }
 }
 
+// Applies a horizontal mouse offset to compensate for player strafing (A/D keys).
+// When pressing A (strafe left) the aim drifts right relative to the target, so we
+// nudge the cursor left (negative X). Pressing D (strafe right) nudges it right.
+// Only fires while aiming to avoid unwanted movement during free-look.
+void handleStrafeAimAssist(MouseThread& mouseThread)
+{
+    if (!config.strafe_aim_assist || !aiming.load())
+        return;
+
+    const bool isLeft  = strafe_left.load();
+    const bool isRight = strafe_right.load();
+
+    if (!isLeft && !isRight)
+        return;
+
+    // Both pressed simultaneously cancel each other out.
+    int dx = 0;
+    if (isLeft)  dx -= static_cast<int>(config.strafe_aim_strength);
+    if (isRight) dx += static_cast<int>(config.strafe_aim_strength);
+
+    if (dx == 0)
+        return;
+
+    std::lock_guard<std::mutex> lock(mouseThread.input_method_mutex);
+
+    if (arduinoSerial)
+    {
+        arduinoSerial->move(dx, 0);
+    }
+    else if (gHub)
+    {
+        gHub->mouse_xy(dx, 0);
+    }
+    else if (kmboxNetSerial)
+    {
+        kmboxNetSerial->move(dx, 0);
+    }
+    else if (kmboxASerial)
+    {
+        kmboxASerial->move(dx, 0);
+    }
+    else if (makcuSerial)
+    {
+        makcuSerial->move(dx, 0);
+    }
+    else
+    {
+        INPUT input = { 0 };
+        input.type = INPUT_MOUSE;
+        input.mi.dx = dx;
+        input.mi.dy = 0;
+        input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_VIRTUALDESK;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+}
+
 void mouseThreadFunction(MouseThread& mouseThread)
 {
     int lastVersion = -1;
@@ -1345,6 +1403,7 @@ void mouseThreadFunction(MouseThread& mouseThread)
         }
 
         handleEasyNoRecoil(mouseThread);
+        handleStrafeAimAssist(mouseThread);
 
         mouseThread.checkAndResetPredictions();
     }
