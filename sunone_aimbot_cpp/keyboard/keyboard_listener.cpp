@@ -23,6 +23,7 @@ extern std::atomic<bool> aiming;
 extern std::atomic<bool> shooting;
 extern std::atomic<bool> zooming;
 extern std::atomic<bool> detectionPaused;
+extern std::atomic<bool> auto_shooting_active;
 
 extern MouseThread* globalMouseThread;
 
@@ -154,6 +155,19 @@ void keyboardListener()
             (config.arduino_enable_keys && arduinoSerial && arduinoSerial->isOpen() && arduinoSerial->zooming_active) ||
             (kmboxNetSerial && kmboxNetSerial->isOpen() && kmboxNetSerial->zooming_active) ||
             (makcuSerial && makcuSerial->isOpen() && makcuSerial->zooming_active);
+
+        // Dedicated Auto-Shoot button
+        // When button_auto_shoot is "None" (or empty), auto_shooting_active stays true
+        // so the existing behaviour is preserved.  If a button is configured it must be
+        // held for auto-shoot to fire.
+        {
+            const bool hasDedicatedBtn = !config.button_auto_shoot.empty() &&
+                config.button_auto_shoot[0] != "None";
+            if (hasDedicatedBtn)
+                auto_shooting_active = isAnyKeyPressed(config.button_auto_shoot);
+            else
+                auto_shooting_active = true;
+        }
 
         // Exit - Win32
         if (isAnyKeyPressedWin32Only(config.button_exit))

@@ -113,6 +113,9 @@ public:
     std::vector<std::string> button_pause;
     std::vector<std::string> button_reload_config;
     std::vector<std::string> button_open_overlay;
+    // Dedicated button that must be held for auto-shoot to fire.
+    // When set to "None" auto-shoot fires whenever aiming is active (legacy behaviour).
+    std::vector<std::string> button_auto_shoot;
     bool enable_arrows_settings;
 
     // Overlay
