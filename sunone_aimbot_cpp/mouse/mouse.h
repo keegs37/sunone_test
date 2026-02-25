@@ -42,7 +42,11 @@ private:
 
     double prev_x, prev_y;
     double prev_velocity_x, prev_velocity_y;
+    double smooth_velocity_x, smooth_velocity_y;
     std::chrono::time_point<std::chrono::steady_clock> prev_time;
+
+    // EMA smoothing factor for velocity (0 = frozen, 1 = raw instant velocity).
+    static constexpr double kVelocityAlpha = 0.55;
     std::chrono::steady_clock::time_point last_target_time;
     std::atomic<bool> target_detected{ false };
     std::atomic<bool> mouse_pressed{ false };

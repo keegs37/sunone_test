@@ -96,6 +96,20 @@ bool isAnyKeyPressed(const std::vector<std::string>& keys)
             else if (key_name == "X2MouseButton")     pressed = arduinoSerial->aiming_active;
         }
 
+        // MAKCU Keyboard Monitor (second MAKCU device for physical keyboard passthrough)
+        if (!pressed && makcuKeyboard && makcuKeyboard->isOpen())
+        {
+            bool isMouse = (key_name == "LeftMouseButton" ||
+                key_name == "RightMouseButton" ||
+                key_name == "MiddleMouseButton" ||
+                key_name == "X1MouseButton" ||
+                key_name == "X2MouseButton");
+            if (!isMouse)
+            {
+                pressed = makcuKeyboard->isKeyPressed(key_name);
+            }
+        }
+
         // Win32 API
         if (!pressed && key_code != -1)
         {

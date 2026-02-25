@@ -691,6 +691,81 @@ void draw_mouse()
         OverlayUI::EndSection();
     }
 
+    if (OverlayUI::BeginSection("MAKCU Keyboard Monitor", "mouse_section_makcu_keyboard"))
+    {
+        bool kb_enable = config.makcu_keyboard_enable;
+        if (ImGui::Checkbox("Enable MAKCU Keyboard Monitor", &kb_enable))
+        {
+            config.makcu_keyboard_enable = kb_enable;
+            OverlayConfig_MarkDirty();
+            input_method_changed.store(true);
+        }
+
+        if (config.makcu_keyboard_enable)
+        {
+            std::vector<std::string> kb_port_list;
+            for (int i = 1; i <= 30; ++i)
+                kb_port_list.push_back("COM" + std::to_string(i));
+
+            std::vector<const char*> kb_port_items;
+            kb_port_items.reserve(kb_port_list.size());
+            for (const auto& p : kb_port_list)
+                kb_port_items.push_back(p.c_str());
+
+            int kb_port_index = 0;
+            for (size_t i = 0; i < kb_port_list.size(); ++i)
+            {
+                if (kb_port_list[i] == config.makcu_keyboard_port)
+                {
+                    kb_port_index = static_cast<int>(i);
+                    break;
+                }
+            }
+
+            if (ImGui::Combo("Keyboard MAKCU Port", &kb_port_index,
+                kb_port_items.data(), static_cast<int>(kb_port_items.size())))
+            {
+                config.makcu_keyboard_port = kb_port_list[kb_port_index];
+                OverlayConfig_MarkDirty();
+                input_method_changed.store(true);
+            }
+
+            std::vector<int> kb_baud_list = { 115200, 250000, 500000, 1000000, 2000000 };
+            std::vector<std::string> kb_baud_strs;
+            std::vector<const char*> kb_baud_items;
+            for (int b : kb_baud_list)
+            {
+                kb_baud_strs.push_back(std::to_string(b));
+                kb_baud_items.push_back(kb_baud_strs.back().c_str());
+            }
+
+            int kb_baud_index = 0;
+            for (size_t i = 0; i < kb_baud_list.size(); ++i)
+            {
+                if (kb_baud_list[i] == config.makcu_keyboard_baudrate)
+                {
+                    kb_baud_index = static_cast<int>(i);
+                    break;
+                }
+            }
+
+            if (ImGui::Combo("Keyboard MAKCU Baudrate", &kb_baud_index,
+                kb_baud_items.data(), static_cast<int>(kb_baud_items.size())))
+            {
+                config.makcu_keyboard_baudrate = kb_baud_list[kb_baud_index];
+                OverlayConfig_MarkDirty();
+                input_method_changed.store(true);
+            }
+
+            if (makcuKeyboard && makcuKeyboard->isOpen())
+                ImGui::TextColored(ImVec4(0, 255, 0, 255), "Keyboard MAKCU connected");
+            else
+                ImGui::TextColored(ImVec4(255, 0, 0, 255), "Keyboard MAKCU not connected");
+        }
+
+        OverlayUI::EndSection();
+    }
+
     if (OverlayUI::BeginSection("Warning", "mouse_section_warning"))
     {
         ImGui::TextColored(ImVec4(255, 255, 255, 100), "Do not test shooting and aiming with the overlay is open.");

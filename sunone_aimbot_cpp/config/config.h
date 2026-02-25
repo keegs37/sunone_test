@@ -75,6 +75,11 @@ public:
     int makcu_baudrate;
     std::string makcu_port;
 
+    // makcu keyboard monitor (second MAKCU device for physical keyboard passthrough)
+    bool makcu_keyboard_enable;
+    std::string makcu_keyboard_port;
+    int makcu_keyboard_baudrate;
+
     // Mouse shooting
     bool auto_shoot;
     float bScope_multiplier;
