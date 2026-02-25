@@ -52,6 +52,8 @@ float prev_head_y_offset = config.head_y_offset;
 bool prev_auto_aim = config.auto_aim;
 bool prev_easynorecoil = config.easynorecoil;
 float prev_easynorecoilstrength = config.easynorecoilstrength;
+bool prev_strafe_aim_assist = config.strafe_aim_assist;
+float prev_strafe_aim_strength = config.strafe_aim_strength;
 
 void draw_target()
 {
@@ -113,7 +115,9 @@ void draw_target()
         prev_head_y_offset != config.head_y_offset ||
         prev_auto_aim != config.auto_aim ||
         prev_easynorecoil != config.easynorecoil ||
-        prev_easynorecoilstrength != config.easynorecoilstrength)
+        prev_easynorecoilstrength != config.easynorecoilstrength ||
+        prev_strafe_aim_assist != config.strafe_aim_assist ||
+        prev_strafe_aim_strength != config.strafe_aim_strength)
     {
         prev_disable_headshot = config.disable_headshot;
         prev_body_y_offset = config.body_y_offset;
@@ -121,6 +125,8 @@ void draw_target()
         prev_auto_aim = config.auto_aim;
         prev_easynorecoil = config.easynorecoil;
         prev_easynorecoilstrength = config.easynorecoilstrength;
+        prev_strafe_aim_assist = config.strafe_aim_assist;
+        prev_strafe_aim_strength = config.strafe_aim_strength;
         OverlayConfig_MarkDirty();
     }
 }

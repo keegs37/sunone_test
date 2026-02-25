@@ -24,6 +24,8 @@ extern std::atomic<bool> shooting;
 extern std::atomic<bool> zooming;
 extern std::atomic<bool> detectionPaused;
 extern std::atomic<bool> auto_shooting_active;
+extern std::atomic<bool> strafe_left;
+extern std::atomic<bool> strafe_right;
 
 extern MouseThread* globalMouseThread;
 
@@ -36,6 +38,10 @@ const std::vector<std::string> downArrowKeys = { "DownArrow" };
 const std::vector<std::string> leftArrowKeys = { "LeftArrow" };
 const std::vector<std::string> rightArrowKeys = { "RightArrow" };
 const std::vector<std::string> shiftKeys = { "LeftShift", "RightShift" };
+
+// Strafe key vectors (A/D for left/right strafe detection)
+const std::vector<std::string> strafeLeftKeys = { "A" };
+const std::vector<std::string> strafeRightKeys = { "D" };
 
 // Previous key states
 bool prevUpArrow = false;
@@ -303,6 +309,18 @@ void keyboardListener()
         prevDownArrow = downArrow;
         prevLeftArrow = leftArrow;
         prevRightArrow = rightArrow;
+
+        // Strafe key detection for aim assist (A/D keys via MAKCU keyboard monitor or Win32)
+        if (config.strafe_aim_assist)
+        {
+            strafe_left  = isAnyKeyPressed(strafeLeftKeys);
+            strafe_right = isAnyKeyPressed(strafeRightKeys);
+        }
+        else
+        {
+            strafe_left  = false;
+            strafe_right = false;
+        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
