@@ -754,12 +754,12 @@ void draw_mouse()
 
             std::vector<int> kb_baud_list = { 115200, 250000, 500000, 1000000, 2000000 };
             std::vector<std::string> kb_baud_strs;
+            kb_baud_strs.reserve(kb_baud_list.size());
+            for (int b : kb_baud_list) kb_baud_strs.push_back(std::to_string(b));
+
             std::vector<const char*> kb_baud_items;
-            for (int b : kb_baud_list)
-            {
-                kb_baud_strs.push_back(std::to_string(b));
-                kb_baud_items.push_back(kb_baud_strs.back().c_str());
-            }
+            kb_baud_items.reserve(kb_baud_strs.size());
+            for (const auto& s : kb_baud_strs) kb_baud_items.push_back(s.c_str());
 
             int kb_baud_index = 0;
             for (size_t i = 0; i < kb_baud_list.size(); ++i)
